@@ -48,6 +48,17 @@ services:
         condition: service_healthy
     command: uv run alembic upgrade head
 
+  import-data:
+    build: ./fastapi
+    container_name: loyaltyhub-import
+    volumes:
+      - ./fastapi:/app
+    env_file: ./fastapi/.env
+    depends_on:
+      migrations:
+        condition: service_completed_successfully
+    command: uv run python -m app.scripts.import_data
+
   nginx:
     image: nginx:stable-alpine
     container_name: loyalthub-nginx
