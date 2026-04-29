@@ -29,6 +29,7 @@ class User(Base):
 
     id: Mapped[int] = mapped_column(primary_key=True)
     email: Mapped[str] = mapped_column(String(255), unique=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
     phone_number: Mapped[str] = mapped_column(String(20), nullable=False)
     full_name: Mapped[str] = mapped_column(String(255), nullable=False)
     financial_segment: Mapped[FinancialSegment] = mapped_column(

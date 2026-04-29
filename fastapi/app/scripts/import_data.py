@@ -19,6 +19,7 @@ from app.models import (
     Offer,
     User,
 )
+from app.services.auth_service import get_password_hash
 from sqlalchemy.ext.asyncio import AsyncSession
 
 # Путь к папке с CSV-файлами
@@ -50,6 +51,7 @@ async def import_users(session: AsyncSession) -> None:
         user = User(
             id=int(row["id"]),
             email=row["email"],
+            hashed_password=get_password_hash(f"user_{row['id']}"),
             phone_number=row["phone_number"],
             full_name=row["full_name"],
             financial_segment=FinancialSegment(row["financial_segment"]),
