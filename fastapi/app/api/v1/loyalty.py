@@ -3,6 +3,7 @@ from app.dependencies.auth import get_current_user
 from app.models.user import User
 from app.schemas.loyalty import (
     HistoryItem,
+    LoyaltyForecast,
     LoyaltySummary,
     MonthlyHistory,
 )
@@ -53,3 +54,16 @@ async def get_monthly_history(
     Используется для построения графика динамики кэшбэка.
     """
     return await service.get_monthly_history(current_user.id)
+
+
+@router.get("/forecast", response_model=LoyaltyForecast)
+async def get_forecast(
+    current_user: User = Depends(get_current_user),
+    service: LoyaltyService = Depends(get_loyalty_service),
+):
+    """
+    Прогноз выгоды на следующий месяц.
+    Рассчитывается как среднее начислений за последние 3 месяца
+    по каждой программе лояльности.
+    """
+    return await service.get_forecast(current_user.id)

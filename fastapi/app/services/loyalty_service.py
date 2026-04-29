@@ -1,11 +1,14 @@
 from collections import defaultdict
+from datetime import date
 
 from app.models.account import Account
 from app.models.loyalty_program import CashbackCurrency
 from app.models.loyalty_transaction import LoyaltyTransaction
 from app.schemas.loyalty import (
     AccountSummary,
+    ForecastItem,
     HistoryItem,
+    LoyaltyForecast,
     LoyaltySummary,
     MonthlyHistory,
 )
@@ -132,3 +135,59 @@ class LoyaltyService:
             )
             for month, data in sorted(monthly.items())
         ]
+
+    async def get_forecast(self, user_id: int) -> LoyaltyForecast:
+        """
+        Прогноз выгоды на следующий месяц.
+        Считается как среднее начислений за последние 3 месяца по каждой программе.
+        """
+        accounts = await self._get_user_accounts(user_id)
+        account_map = {a.id: a for a in accounts}
+        account_ids = list(account_map.keys())
+
+        transactions = await self._get_transactions(account_ids)
+
+        today = date.today()
+
+        # Берём транзакции за последние 3 месяца
+        recent_months = set()
+        for tx in transactions:
+            months_diff = (today.year - tx.payout_date.year) * 12 + (
+                today.month - tx.payout_date.month
+            )
+            if months_diff <= 3:
+                recent_months.add(tx.payout_date.strftime("%Y-%m"))
+
+        # Суммируем по программам за последние 3 месяца
+        program_totals: dict[int, float] = defaultdict(float)
+        program_months: dict[int, set] = defaultdict(set)
+
+        for tx in transactions:
+            months_diff = (today.year - tx.payout_date.year) * 12 + (
+                today.month - tx.payout_date.month
+            )
+            if months_diff <= 3:
+                account = account_map[tx.account_id]
+                program_id = account.loyalty_program_id
+                program_totals[program_id] += float(tx.cashback_amount)
+                program_months[program_id].add(tx.payout_date.strftime("%Y-%m"))
+
+        # Считаем среднее и формируем прогноз
+        forecasts = []
+        for account in accounts:
+            program = account.loyalty_program
+            pid = program.id
+            months_count = len(program_months.get(pid, set())) or 1
+            predicted = round(program_totals.get(pid, 0.0) / months_count, 2)
+
+            # Избегаем дублирования программ если у пользователя несколько счетов одной программы
+            if not any(f.loyalty_program_name == program.name for f in forecasts):
+                forecasts.append(
+                    ForecastItem(
+                        loyalty_program_name=program.name,
+                        cashback_currency=program.cashback_currency,
+                        predicted_amount=predicted,
+                    )
+                )
+
+        return LoyaltyForecast(forecasts=forecasts)

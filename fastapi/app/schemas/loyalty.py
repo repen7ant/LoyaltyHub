@@ -44,3 +44,19 @@ class MonthlyHistory(BaseModel):
     total_rub: float
     total_miles: float
     total_bravo: float
+
+
+class ForecastItem(BaseModel):
+    """Прогноз выгоды по одной программе лояльности."""
+
+    loyalty_program_name: str
+    cashback_currency: CashbackCurrency
+    predicted_amount: (
+        float  # прогноз на следующий месяц (среднее за последние 3 месяца)
+    )
+
+
+class LoyaltyForecast(BaseModel):
+    """Прогноз выгоды на следующий месяц по всем программам."""
+
+    forecasts: list[ForecastItem]
