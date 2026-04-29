@@ -1,0 +1,63 @@
+services:
+  db:
+    image: postgres:16-alpine
+    container_name: loyaltyhub-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-loyaltyhub}
+      POSTGRES_USER: ${POSTGRES_USER:-loyaltyhub}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-loyaltyhub}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: [
+          "CMD-SHELL",
+          "pg_isready -U ${POSTGRES_USER:-loyaltyhub} -d
+          ${POSTGRES_DB:-loyaltyhub}",
+        ]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  fastapi:
+    build: ./fastapi
+    container_name: loyaltyhub-fastapi
+    restart: unless-stopped
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./fastapi:/app
+    command: uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    env_file: ./fastapi/.env
+    depends_on:
+      db:
+        condition: service_healthy
+      migrations:
+        condition: service_completed_successfully
+
+  migrations:
+    build: ./fastapi
+    container_name: loyaltyhub-migrations
+    volumes:
+      - ./fastapi:/app
+    env_file: ./fastapi/.env
+    depends_on:
+      db:
+        condition: service_healthy
+    command: uv run alembic upgrade head
+
+  nginx:
+    image: nginx:stable-alpine
+    container_name: loyalthub-nginx
+    restart: unless-stopped
+    ports:
+      - "80:80"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+    depends_on:
+      - fastapi
+
+volumes:
+  postgres_data:
