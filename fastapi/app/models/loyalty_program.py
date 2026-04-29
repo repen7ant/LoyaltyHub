@@ -9,7 +9,6 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
     from app.models.account import Account
-    from app.models.loyalty_program import LoyaltyProgram
 
 
 class CashbackCurrency(str, enum.Enum):
