@@ -1,0 +1,7 @@
+id,partner_name,short_description,logo_url,brand_color_hex,cashback_percent,financial_segment,offer_type,target_product_id
+101,Т-Мобайл,Связь за 0 ₽ при тратах по картам Т-Банка. Перенесите номер и получите бонус.,https://placehold.co/400x400/FFE000/000000?text=T-Mobile,#FFE000,10.00,LOW,ECOSYSTEM,t-mobile
+102,Кредитная карта Платинум,Рассрочка 0% на всё и кэшбэк баллами Браво. Одобрение за 2 минуты.,https://placehold.co/400x400/B4B6B9/000000?text=Platinum,#B4B6B9,0.00,MEDIUM,ECOSYSTEM,3
+103,Т-Инвестиции,Откройте брокерский счет и получите акцию до 20 000 ₽ в подарок.,https://placehold.co/400x400/2273FF/FFFFFF?text=Investments,#2273FF,0.00,MEDIUM,ECOSYSTEM,t-invest
+104,Карта All Airlines,Копите мили за любые покупки и летайте бесплатно.,https://placehold.co/400x400/1F54C3/FFFFFF?text=All+Airlines,#1F54C3,2.00,HIGH,ECOSYSTEM,1
+105,Т-Инвестиции Премиум,Персональный менеджер и доступ к внебиржевым инструментам.,https://placehold.co/400x400/000000/FFFFFF?text=Premium,#000000,0.00,HIGH,ECOSYSTEM,t-invest-premium
+106,Т-Бизнес,Счет для бизнеса с бесплатным обслуживанием и встроенной бухгалтерией.,https://placehold.co/400x400/333333/FFFFFF?text=Business,#333333,0.00,HIGH,ECOSYSTEM,t-business

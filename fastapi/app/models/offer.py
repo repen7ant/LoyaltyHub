@@ -1,12 +1,19 @@
+import enum
+
 from app.models.base import Base
 from app.models.user import FinancialSegment
 from sqlalchemy import Enum, Numeric, String
 from sqlalchemy.orm import Mapped, mapped_column
 
 
+class OfferType(str, enum.Enum):
+    PARTNER = "PARTNER"
+    ECOSYSTEM = "ECOSYSTEM"
+
+
 class Offer(Base):
     """
-    Акция партнёра Т-Банка с повышенным кэшбэком.
+    Акция партнёра Т-Банка с повышенным кэшбэком или продукт экосистемы Т-Банка.
     Акции фильтруются по финансовому сегменту пользователя —
     каждый пользователь видит только релевантные для него предложения.
     """
@@ -35,3 +42,8 @@ class Offer(Base):
         Enum(FinancialSegment),
         nullable=False,  # сегмент пользователей которым показывается оффер
     )
+    # Поля для кросс-селла
+    offer_type: Mapped[OfferType] = mapped_column(
+        Enum(OfferType), default=OfferType.PARTNER, nullable=False
+    )
+    target_product_id: Mapped[str | None] = mapped_column(String(50), nullable=True)
