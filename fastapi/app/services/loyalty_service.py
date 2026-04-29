@@ -40,7 +40,7 @@ class LoyaltyService:
             .where(Account.user_id == user_id)
             .options(selectinload(Account.loyalty_program))
         )
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def _get_transactions(
         self, account_ids: list[int]
@@ -51,7 +51,7 @@ class LoyaltyService:
             .where(LoyaltyTransaction.account_id.in_(account_ids))
             .order_by(LoyaltyTransaction.payout_date.desc())
         )
-        return result.scalars().all()
+        return list(result.scalars().all())
 
     async def get_summary(self, user_id: int) -> LoyaltySummary:
         """

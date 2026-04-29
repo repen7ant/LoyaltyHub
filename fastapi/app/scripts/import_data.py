@@ -22,6 +22,7 @@ from app.models import (
 )
 from app.services.auth_service import get_password_hash
 from sqlalchemy.ext.asyncio import AsyncSession
+from sqlalchemy.future import select
 
 # Путь к папке с CSV-файлами
 DATA_DIR = Path(__file__).parent.parent.parent / "data"
@@ -131,6 +132,12 @@ async def import_ecosystem_offers(session: AsyncSession) -> None:
 async def main() -> None:
     print("Начинаем импорт данных...")
     async with AsyncSessionLocal() as session:
+        # Проверяем, есть ли уже программы лояльности в БД
+        result = await session.execute(select(LoyaltyProgram.id).limit(1))
+        if result.scalars().first() is not None:
+            print("База данных уже заполнена. Пропускаем импорт.")
+            return  # Выходим из функции, импорт не запускается
+
         # Порядок важен — сначала то, на что есть FK
         await import_loyalty_programs(session)
         await import_users(session)

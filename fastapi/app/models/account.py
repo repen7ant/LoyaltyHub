@@ -7,7 +7,6 @@ from sqlalchemy import ForeignKey, Numeric
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
-    from app.models.account import Account
     from app.models.loyalty_program import LoyaltyProgram
     from app.models.loyalty_transaction import LoyaltyTransaction
     from app.models.user import User
