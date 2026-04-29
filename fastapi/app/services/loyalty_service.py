@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from app.models.account import Account
 from app.models.loyalty_program import CashbackCurrency
 from app.models.loyalty_transaction import LoyaltyTransaction
@@ -5,6 +7,7 @@ from app.schemas.loyalty import (
     AccountSummary,
     HistoryItem,
     LoyaltySummary,
+    MonthlyHistory,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
@@ -102,3 +105,30 @@ class LoyaltyService:
             )
 
         return result
+
+    async def get_monthly_history(self, user_id: int) -> list[MonthlyHistory]:
+        """
+        История начислений сгруппированная по месяцам.
+        Используется для графика динамики кэшбэка.
+        """
+        items = await self.get_history(user_id)
+
+        # Группируем по месяцу и валюте
+        monthly: dict[str, dict[str, float]] = defaultdict(
+            lambda: {"rub": 0.0, "miles": 0.0, "bravo-points": 0.0}
+        )
+
+        for item in items:
+            month_key = item.payout_date.strftime("%Y-%m")
+            monthly[month_key][item.cashback_currency.value] += item.cashback_amount
+
+        # Сортируем по дате
+        return [
+            MonthlyHistory(
+                month=month,
+                total_rub=data["rub"],
+                total_miles=data["miles"],
+                total_bravo=data["bravo-points"],
+            )
+            for month, data in sorted(monthly.items())
+        ]

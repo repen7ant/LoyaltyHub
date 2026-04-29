@@ -35,3 +35,12 @@ class HistoryItem(BaseModel):
     payout_date: date
 
     model_config = {"from_attributes": True}
+
+
+class MonthlyHistory(BaseModel):
+    """История начислений сгруппированная по месяцам."""
+
+    month: str  # формат: "2025-04"
+    total_rub: float
+    total_miles: float
+    total_bravo: float

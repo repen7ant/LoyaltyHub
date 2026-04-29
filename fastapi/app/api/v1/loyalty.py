@@ -4,6 +4,7 @@ from app.models.user import User
 from app.schemas.loyalty import (
     HistoryItem,
     LoyaltySummary,
+    MonthlyHistory,
 )
 from app.services.loyalty_service import LoyaltyService
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -40,3 +41,15 @@ async def get_history(
     Отсортирована по дате — сначала новые.
     """
     return await service.get_history(current_user.id)
+
+
+@router.get("/history/monthly", response_model=list[MonthlyHistory])
+async def get_monthly_history(
+    current_user: User = Depends(get_current_user),
+    service: LoyaltyService = Depends(get_loyalty_service),
+):
+    """
+    История начислений сгруппированная по месяцам.
+    Используется для построения графика динамики кэшбэка.
+    """
+    return await service.get_monthly_history(current_user.id)
