@@ -17,6 +17,7 @@ from app.models import (
     LoyaltyProgram,
     LoyaltyTransaction,
     Offer,
+    OfferType,
     User,
 )
 from app.services.auth_service import get_password_hash
@@ -97,9 +98,34 @@ async def import_offers(session: AsyncSession) -> None:
             brand_color_hex=row["brand_color_hex"],
             cashback_percent=float(row["cashback_percent"]),
             financial_segment=FinancialSegment(row["financial_segment"]),
+            offer_type=OfferType(row.get("offer_type", "PARTNER")),
+            target_product_id=row.get("target_product_id") or None,
         )
         session.add(offer)
     print(f"  Offers: {len(rows)} записей")
+
+
+async def import_ecosystem_offers(session: AsyncSession) -> None:
+    """Импорт кросс-селл предложений (продуктов экосистемы)."""
+    try:
+        rows = open_csv("EcosystemOffers.csv")
+        for row in rows:
+            offer = Offer(
+                id=int(row["id"]),
+                partner_name=row["partner_name"],
+                short_description=row["short_description"],
+                logo_url=row["logo_url"],
+                brand_color_hex=row["brand_color_hex"],
+                cashback_percent=float(row["cashback_percent"]),
+                financial_segment=FinancialSegment(row["financial_segment"]),
+                offer_type=OfferType(row["offer_type"]),
+                # Если ячейка пустая, записываем None
+                target_product_id=row.get("target_product_id") or None,
+            )
+            session.add(offer)
+        print(f"  EcosystemOffers: {len(rows)} записей")
+    except FileNotFoundError:
+        print("  EcosystemOffers: Файл ecosystem_offers.csv не найден, пропускаем.")
 
 
 async def main() -> None:
@@ -110,7 +136,11 @@ async def main() -> None:
         await import_users(session)
         await import_accounts(session)
         await import_loyalty_history(session)
+
+        # Загружаем офферы партнеров и экосистемы
         await import_offers(session)
+        await import_ecosystem_offers(session)
+
         await session.commit()
     print("Импорт завершён успешно.")
 
