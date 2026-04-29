@@ -16,11 +16,15 @@ class AccountSummary(BaseModel):
 
 
 class LoyaltySummary(BaseModel):
-    """Совокупная лояльность пользователя по всем счетам и программам."""
+    """
+    Совокупная лояльность пользователя по всем счетам и программам.
+    Все валюты приводятся к рублям для наглядного отображения общей выгоды.
+    """
 
     total_rub: float  # рубли (программа Black)
     total_miles: float  # мили (программа All Airlines)
     total_bravo: float  # баллы Браво (программа Platinum)
+    total_equivalent_rub: float  # совокупная выгода в рублях: rub + miles*2 + bravo*0.5
     accounts: list[AccountSummary]
 
 
@@ -44,6 +48,7 @@ class MonthlyHistory(BaseModel):
     total_rub: float
     total_miles: float
     total_bravo: float
+    total_equivalent_rub: float  # совокупная выгода месяца в рублях
 
 
 class ForecastItem(BaseModel):
@@ -51,12 +56,19 @@ class ForecastItem(BaseModel):
 
     loyalty_program_name: str
     cashback_currency: CashbackCurrency
-    predicted_amount: (
-        float  # прогноз на следующий месяц (среднее за последние 3 месяца)
-    )
+    predicted_amount: float  # прогноз в валюте программы
+    predicted_equivalent_rub: float  # прогноз в рублях
 
 
 class LoyaltyForecast(BaseModel):
-    """Прогноз выгоды на следующий месяц по всем программам."""
+    """
+    Прогноз выгоды на следующий месяц.
+    Считается как среднее за 3 месяца × коэффициент роста 1.2.
+    Коэффициент 1.2 отражает предполагаемый рост активности
+    после внедрения единого раздела лояльности.
+    """
 
     forecasts: list[ForecastItem]
+    total_predicted_equivalent_rub: (
+        float  # суммарный прогноз в рублях по всем программам
+    )

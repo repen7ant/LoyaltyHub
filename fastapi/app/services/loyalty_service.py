@@ -16,6 +16,18 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.future import select
 from sqlalchemy.orm import selectinload
 
+# Коэффициенты конвертации валют лояльности в рубли
+BRAVO_TO_RUB = 0.5  # 1 балл Браво ≈ 0.5 ₽
+MILE_TO_RUB = 2.0  # 1 миля ≈ 2 ₽
+
+# Коэффициент роста активности после внедрения раздела лояльности
+FORECAST_GROWTH = 1.2
+
+
+def to_rub_equivalent(rub: float, miles: float, bravo: float) -> float:
+    """Приводит все валюты кэшбэка к рублёвому эквиваленту."""
+    return round(rub + miles * MILE_TO_RUB + bravo * BRAVO_TO_RUB, 2)
+
 
 class LoyaltyService:
     def __init__(self, db: AsyncSession):
@@ -44,7 +56,7 @@ class LoyaltyService:
     async def get_summary(self, user_id: int) -> LoyaltySummary:
         """
         Возвращает совокупную лояльность пользователя.
-        Суммирует текущие балансы по каждой валюте кэшбэка.
+        Суммирует текущие балансы по каждой валюте и приводит к рублям.
         """
         accounts = await self._get_user_accounts(user_id)
 
@@ -57,7 +69,6 @@ class LoyaltyService:
             program = account.loyalty_program
             balance = float(account.current_balance)
 
-            # Суммируем по типу валюты
             if program.cashback_currency == CashbackCurrency.RUB:
                 total_rub += balance
             elif program.cashback_currency == CashbackCurrency.MILES:
@@ -75,9 +86,10 @@ class LoyaltyService:
             )
 
         return LoyaltySummary(
-            total_rub=total_rub,
-            total_miles=total_miles,
-            total_bravo=total_bravo,
+            total_rub=round(total_rub, 2),
+            total_miles=round(total_miles, 2),
+            total_bravo=round(total_bravo, 2),
+            total_equivalent_rub=to_rub_equivalent(total_rub, total_miles, total_bravo),
             accounts=account_summaries,
         )
 
@@ -116,7 +128,6 @@ class LoyaltyService:
         """
         items = await self.get_history(user_id)
 
-        # Группируем по месяцу и валюте
         monthly: dict[str, dict[str, float]] = defaultdict(
             lambda: {"rub": 0.0, "miles": 0.0, "bravo-points": 0.0}
         )
@@ -125,13 +136,15 @@ class LoyaltyService:
             month_key = item.payout_date.strftime("%Y-%m")
             monthly[month_key][item.cashback_currency.value] += item.cashback_amount
 
-        # Сортируем по дате
         return [
             MonthlyHistory(
                 month=month,
-                total_rub=data["rub"],
-                total_miles=data["miles"],
-                total_bravo=data["bravo-points"],
+                total_rub=round(data["rub"], 2),
+                total_miles=round(data["miles"], 2),
+                total_bravo=round(data["bravo-points"], 2),
+                total_equivalent_rub=to_rub_equivalent(
+                    data["rub"], data["miles"], data["bravo-points"]
+                ),
             )
             for month, data in sorted(monthly.items())
         ]
@@ -139,7 +152,7 @@ class LoyaltyService:
     async def get_forecast(self, user_id: int) -> LoyaltyForecast:
         """
         Прогноз выгоды на следующий месяц.
-        Считается как среднее начислений за последние 3 месяца по каждой программе.
+        Среднее за последние 3 месяца × FORECAST_GROWTH (1.2).
         """
         accounts = await self._get_user_accounts(user_id)
         account_map = {a.id: a for a in accounts}
@@ -149,18 +162,11 @@ class LoyaltyService:
 
         today = date.today()
 
-        # Берём транзакции за последние 3 месяца
-        recent_months = set()
-        for tx in transactions:
-            months_diff = (today.year - tx.payout_date.year) * 12 + (
-                today.month - tx.payout_date.month
-            )
-            if months_diff <= 3:
-                recent_months.add(tx.payout_date.strftime("%Y-%m"))
-
-        # Суммируем по программам за последние 3 месяца
+        # Суммируем начисления и уникальные месяцы по каждой программе за последние 3 месяца
         program_totals: dict[int, float] = defaultdict(float)
         program_months: dict[int, set] = defaultdict(set)
+        program_currency: dict[int, CashbackCurrency] = {}
+        program_name: dict[int, str] = {}
 
         for tx in transactions:
             months_diff = (today.year - tx.payout_date.year) * 12 + (
@@ -168,26 +174,53 @@ class LoyaltyService:
             )
             if months_diff <= 3:
                 account = account_map[tx.account_id]
-                program_id = account.loyalty_program_id
-                program_totals[program_id] += float(tx.cashback_amount)
-                program_months[program_id].add(tx.payout_date.strftime("%Y-%m"))
+                program = account.loyalty_program
+                pid = program.id
+                program_totals[pid] += float(tx.cashback_amount)
+                program_months[pid].add(tx.payout_date.strftime("%Y-%m"))
+                program_currency[pid] = program.cashback_currency
+                program_name[pid] = program.name
 
-        # Считаем среднее и формируем прогноз
+        # Формируем прогноз — среднее × коэффициент роста
         forecasts = []
+        seen_programs = set()
+
         for account in accounts:
             program = account.loyalty_program
             pid = program.id
+
+            if pid in seen_programs:
+                continue
+            seen_programs.add(pid)
+
             months_count = len(program_months.get(pid, set())) or 1
-            predicted = round(program_totals.get(pid, 0.0) / months_count, 2)
+            avg = program_totals.get(pid, 0.0) / months_count
+            predicted = round(avg * FORECAST_GROWTH, 2)
 
-            # Избегаем дублирования программ если у пользователя несколько счетов одной программы
-            if not any(f.loyalty_program_name == program.name for f in forecasts):
-                forecasts.append(
-                    ForecastItem(
-                        loyalty_program_name=program.name,
-                        cashback_currency=program.cashback_currency,
-                        predicted_amount=predicted,
-                    )
+            currency = program_currency.get(pid, program.cashback_currency)
+
+            # Считаем рублёвый эквивалент прогноза
+            if currency == CashbackCurrency.RUB:
+                predicted_rub = predicted
+            elif currency == CashbackCurrency.MILES:
+                predicted_rub = round(predicted * MILE_TO_RUB, 2)
+            else:  # BRAVO
+                predicted_rub = round(predicted * BRAVO_TO_RUB, 2)
+
+            forecasts.append(
+                ForecastItem(
+                    loyalty_program_name=program.name,
+                    cashback_currency=currency,
+                    predicted_amount=predicted,
+                    predicted_equivalent_rub=predicted_rub,
                 )
+            )
 
-        return LoyaltyForecast(forecasts=forecasts)
+        total_predicted_rub = round(
+            sum(f.predicted_equivalent_rub for f in forecasts), 2
+        )
+
+        return LoyaltyForecast(
+            forecasts=forecasts,
+            total_predicted_equivalent_rub=total_predicted_rub,
+        )
