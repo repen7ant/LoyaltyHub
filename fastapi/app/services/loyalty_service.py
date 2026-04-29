@@ -3,6 +3,7 @@ from app.models.loyalty_program import CashbackCurrency
 from app.models.loyalty_transaction import LoyaltyTransaction
 from app.schemas.loyalty import (
     AccountSummary,
+    HistoryItem,
     LoyaltySummary,
 )
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -73,3 +74,31 @@ class LoyaltyService:
             total_bravo=total_bravo,
             accounts=account_summaries,
         )
+
+    async def get_history(self, user_id: int) -> list[HistoryItem]:
+        """
+        Возвращает историю начислений пользователя.
+        Каждая запись содержит название программы и валюту кэшбэка.
+        """
+        accounts = await self._get_user_accounts(user_id)
+        account_map = {a.id: a for a in accounts}
+        account_ids = list(account_map.keys())
+
+        transactions = await self._get_transactions(account_ids)
+
+        result = []
+        for tx in transactions:
+            account = account_map[tx.account_id]
+            program = account.loyalty_program
+            result.append(
+                HistoryItem(
+                    transaction_id=tx.id,
+                    account_id=tx.account_id,
+                    loyalty_program_name=program.name,
+                    cashback_currency=program.cashback_currency,
+                    cashback_amount=float(tx.cashback_amount),
+                    payout_date=tx.payout_date,
+                )
+            )
+
+        return result

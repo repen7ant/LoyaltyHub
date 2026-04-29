@@ -2,6 +2,7 @@ from app.db.session import get_db
 from app.dependencies.auth import get_current_user
 from app.models.user import User
 from app.schemas.loyalty import (
+    HistoryItem,
     LoyaltySummary,
 )
 from app.services.loyalty_service import LoyaltyService
@@ -27,3 +28,15 @@ async def get_summary(
     и детализацию по каждому счёту.
     """
     return await service.get_summary(current_user.id)
+
+
+@router.get("/history", response_model=list[HistoryItem])
+async def get_history(
+    current_user: User = Depends(get_current_user),
+    service: LoyaltyService = Depends(get_loyalty_service),
+):
+    """
+    Полная история начислений кэшбэка по всем счетам пользователя.
+    Отсортирована по дате — сначала новые.
+    """
+    return await service.get_history(current_user.id)

@@ -1,3 +1,5 @@
+from datetime import date
+
 from app.models.loyalty_program import CashbackCurrency
 from pydantic import BaseModel
 
@@ -20,3 +22,16 @@ class LoyaltySummary(BaseModel):
     total_miles: float  # мили (программа All Airlines)
     total_bravo: float  # баллы Браво (программа Platinum)
     accounts: list[AccountSummary]
+
+
+class HistoryItem(BaseModel):
+    """Одна запись истории начислений."""
+
+    transaction_id: int
+    account_id: int
+    loyalty_program_name: str
+    cashback_currency: CashbackCurrency
+    cashback_amount: float
+    payout_date: date
+
+    model_config = {"from_attributes": True}
