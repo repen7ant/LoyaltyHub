@@ -19,6 +19,7 @@ from app.models import (
     Offer,
     OfferType,
     User,
+    UserStreak,
 )
 from app.services.auth_service import get_password_hash
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -129,6 +130,29 @@ async def import_ecosystem_offers(session: AsyncSession) -> None:
         print("  EcosystemOffers: Файл ecosystem_offers.csv не найден, пропускаем.")
 
 
+async def init_streaks(session: AsyncSession, user_rows: list[dict]) -> None:
+    """Создаёт стрики для всех пользователей. Некоторым задаём тестовые значения."""
+
+    # Тестовые стрики для демо
+    test_streaks = {
+        1: {"streak_count": 7, "max_streak": 7},  # достиг «Первая неделя»
+        2: {"streak_count": 30, "max_streak": 45},  # достиг «Марафонец», рекорд 45
+        3: {"streak_count": 3, "max_streak": 14},  # маленький стрик
+    }
+
+    for row in user_rows:
+        user_id = int(row["id"])
+        test = test_streaks.get(user_id, {})
+        streak = UserStreak(
+            user_id=user_id,
+            streak_count=test.get("streak_count", 0),
+            max_streak=test.get("max_streak", 0),
+            last_visit_date=date.today() if test else None,
+        )
+        session.add(streak)
+    print(f"  UserStreaks: {len(user_rows)} записей")
+
+
 async def main() -> None:
     print("Начинаем импорт данных...")
     async with AsyncSessionLocal() as session:
@@ -147,6 +171,10 @@ async def main() -> None:
         # Загружаем офферы партнеров и экосистемы
         await import_offers(session)
         await import_ecosystem_offers(session)
+
+        # Заполням таблицу со стриками тестовыми данными
+        user_rows = open_csv("Users.csv")
+        await init_streaks(session, user_rows)
 
         await session.commit()
     print("Импорт завершён успешно.")
