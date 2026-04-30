@@ -10,6 +10,7 @@
 | `migrations`  | Применяет Alembic миграции при старте            |
 | `import-data` | Загружает CSV данные в БД (запускается один раз) |
 | `fastapi`     | FastAPI приложение                               |
+| `nginx`       | Веб-сервер (reverse proxy для FastAPI)           |
 
 Сервисы запускаются в правильном порядке через `depends_on` с условиями `service_healthy` и `service_completed_successfully`.
 
