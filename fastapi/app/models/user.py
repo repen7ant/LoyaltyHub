@@ -9,6 +9,7 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 if TYPE_CHECKING:
     from app.models.account import Account
+    from app.models.streak import UserStreak
 
 
 class FinancialSegment(str, enum.Enum):
@@ -38,3 +39,4 @@ class User(Base):
     )
 
     accounts: Mapped[list["Account"]] = relationship(back_populates="user")
+    streak: Mapped["UserStreak"] = relationship(back_populates="user")
