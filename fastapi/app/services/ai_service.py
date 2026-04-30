@@ -1,6 +1,7 @@
 import os
 
 import anthropic
+from anthropic.types import TextBlock
 from app.models.user import User
 from app.schemas.loyalty import LoyaltyForecast, LoyaltySummary
 from app.schemas.offer import OfferResponse
@@ -71,7 +72,10 @@ class AIService:
                 system=SYSTEM_PROMPT,
                 messages=[{"role": "user", "content": prompt}],
             )
-            return message.content[0].text
+            block = message.content[0]
+            if isinstance(block, TextBlock):
+                return block.text
+            return "Не удалось получить рекомендацию."
         except Exception as e:
             print(f"Claude API error: {e}")
             return "Не удалось получить рекомендацию. Попробуйте позже."

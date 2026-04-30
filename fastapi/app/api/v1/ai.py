@@ -2,6 +2,7 @@ from app.db.session import get_db
 from app.dependencies.auth import get_current_user
 from app.models.user import User
 from app.schemas.ai import AIRecommendation
+from app.schemas.offer import OfferResponse
 from app.services.ai_service import AIService
 from app.services.loyalty_service import LoyaltyService
 from app.services.offer_service import OfferService
@@ -29,7 +30,8 @@ async def get_recommendation(
     # Собираем все данные пользователя
     summary = await loyalty_service.get_summary(current_user.id)
     forecast = await loyalty_service.get_forecast(current_user.id)
-    offers = await offer_service.get_user_offers(current_user)
+    offer_models = await offer_service.get_user_offers(current_user)
+    offers = [OfferResponse.model_validate(o) for o in offer_models]
 
     recommendation = await ai_service.get_recommendation(
         user=current_user,
